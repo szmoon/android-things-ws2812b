@@ -13,7 +13,7 @@ not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 import android.graphics.Color;
 import android.util.Log;
-import com.google.android.things.pio.PeripheralManagerService;
+import com.google.android.things.pio.PeripheralManager;
 import com.google.android.things.pio.SpiDevice;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class WS2812B extends LinkedList<Color> {
 
     private void init() {
         // Find and choose SPI deivce
-        PeripheralManagerService manager = new PeripheralManagerService();
+        PeripheralManager manager = PeripheralManager.getInstance();
         List<String> deviceList = manager.getSpiBusList();
         if (deviceList.isEmpty()) {
             Log.i(TAG, "No SPI bus available on this device.");
@@ -63,7 +63,9 @@ public class WS2812B extends LinkedList<Color> {
             mSpi.setMode(SpiDevice.MODE0);
             mSpi.setFrequency(3809523); // special frequency to emulate ws2812b protocol
             mSpi.setBitsPerWord(8);
-            mSpi.setBitJustification(false);
+//            mSpi.setBitJustification(false);
+            mSpi.setBitJustification(SpiDevice.BIT_JUSTIFICATION_MSB_FIRST);
+            Log.w(TAG, "Configured SPI Device");
         } catch (IOException e) {
             Log.w(TAG, "Failed to configure SPI device", e);
             return;
@@ -81,17 +83,20 @@ public class WS2812B extends LinkedList<Color> {
                 return;
             }
         }
+
+        Log.w(TAG, "Before Lighting");
         int v;
         int pos = 0;
         byte buffer[] = new byte[12 * this.size()];
         for (Color led: this) {
             byte color[] = {(byte)(led.green() * 255),
-                            (byte)(led.red() * 255),
-                            (byte)(led.blue() * 255)};
+                    (byte)(led.red() * 255),
+                    (byte)(led.blue() * 255)};
             for (int i = 0; i < color.length; i++) {
+                Log.w(TAG, "For Loop");
                 for (int j = 3; j >= 0; j--) {
                     buffer[pos++] = (byte)(0x88 + ((color[i] >> (2 * j)) & 0x01) * 0x06
-                                           + ((color[i] >> (2 * j + 1)) & 0x01) * 0x60);
+                            + ((color[i] >> (2 * j + 1)) & 0x01) * 0x60);
                 }
             }
         }
@@ -112,6 +117,7 @@ public class WS2812B extends LinkedList<Color> {
             try {
                 mSpi.close();
                 mSpi = null;
+                Log.w(TAG, "Closed SPI device");
             } catch (IOException e) {
                 Log.w(TAG, "Unable to close SPI device", e);
             }
